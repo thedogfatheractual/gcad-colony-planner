@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ED Colonisation Supply Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0d10;
+  --bg2: #11141a;
+  --bg3: #181c24;
+  --border: #252b36;
+  --border2: #2e3645;
+  --accent: #e8820c;
+  --accent2: #f4a340;
+  --text: #c8d4e0;
+  --text2: #7a8fa8;
+  --text3: #4a5a6e;
+  --fc: #4fc3f7;
+  --fc-bg: #0a1e2e;
+  --fc-border: #1a4a6e;
+  --danger: #e05050;
+  --danger-bg: #1a0a0a;
+  --warn: #d4a020;
+  --warn-bg: #1a1408;
+  --ok: #50c060;
+  --ok-bg: #081a0a;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Exo 2', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); color: var(--text); font-family: var(--mono); }
+body { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
+
+h1 { font-family: var(--sans); font-weight: 300; font-size: 18px; color: var(--accent); letter-spacing: .15em; text-transform: uppercase; margin-bottom: 4px; }
+.subtitle { font-size: 11px; color: var(--text3); letter-spacing: .08em; margin-bottom: 24px; }
+
+.section-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .1em; display: block; margin-bottom: 6px; }
+
+/* Config */
+.cfg { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; }
+.cfield { display: flex; flex-direction: column; }
+.cfield.grow { flex: 1; min-width: 240px; }
+.cfield input {
+  height: 34px; padding: 0 10px; font-family: var(--mono); font-size: 12px;
+  border: 1px solid var(--border2); border-radius: 4px;
+  background: var(--bg2); color: var(--text); width: 100%;
+  outline: none; transition: border-color .15s;
+}
+.cfield input:focus { border-color: var(--accent); }
+
+/* Import box */
+.import-box { border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; margin-bottom: 20px; background: var(--bg2); }
+
+textarea {
+  width: 100%; height: 100px; font-family: var(--mono); font-size: 11px;
+  padding: 8px; border: 1px solid var(--border2); border-radius: 4px;
+  background: var(--bg3); color: var(--text); resize: vertical; outline: none;
+}
+textarea:focus { border-color: var(--accent); }
+textarea::placeholder { color: var(--text3); }
+
+.ibtn {
+  font-size: 11px; padding: 5px 14px; border: 1px solid var(--border2); border-radius: 4px;
+  background: transparent; color: var(--text); cursor: pointer; font-family: var(--mono);
+  margin-top: 8px; transition: all .15s;
+}
+.ibtn:hover { border-color: var(--accent); color: var(--accent); }
+.ibtn:disabled { opacity: .4; cursor: not-allowed; }
+.parse-status { font-size: 11px; color: var(--text2); margin-top: 6px; min-height: 14px; }
+.parse-status.ok { color: var(--ok); }
+.parse-status.err { color: var(--danger); }
+
+/* Commodity grid */
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.smbtns { display: flex; gap: 6px; }
+.smbtn { font-size: 10px; padding: 2px 8px; cursor: pointer; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: var(--text3); font-family: var(--mono); }
+.smbtn:hover { color: var(--text); border-color: var(--border2); }
+.cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 4px; margin-bottom: 20px; }
+.cathead { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: .12em; grid-column: 1 / -1; padding: 10px 0 3px; margin-top: 4px; border-top: 1px solid var(--border); }
+.cathead:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.crow { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg2); transition: border-color .15s; }
+.crow.on { border-color: var(--accent); background: #1a1208; }
+.crow input[type=checkbox] { width: 13px; height: 13px; cursor: pointer; flex-shrink: 0; accent-color: var(--accent); }
+.crow .cname { flex: 1; font-size: 12px; color: var(--text); cursor: pointer; user-select: none; }
+.crow .amt { width: 72px; height: 26px; text-align: right; font-family: var(--mono); font-size: 12px; padding: 0 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg3); color: var(--text); outline: none; }
+.crow .amt:focus { border-color: var(--accent); }
+
+/* Scan button */
+.scanbtn {
+  display: block; width: 100%; padding: 10px; font-family: var(--mono); font-size: 12px;
+  letter-spacing: .12em; border: 1px solid var(--accent); border-radius: 4px;
+  background: transparent; color: var(--accent); cursor: pointer; margin-bottom: 20px;
+  transition: all .15s; text-transform: uppercase;
+}
+.scanbtn:hover { background: #1a1208; }
+.scanbtn:disabled { opacity: .4; cursor: not-allowed; }
+
+.statbar { font-size: 11px; color: var(--text2); margin-bottom: 10px; min-height: 14px; }
+
+/* Summary cards */
+.summary { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.scard { padding: 8px 14px; border-radius: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.scard .sv { font-size: 22px; display: block; margin-top: 2px; font-family: var(--sans); font-weight: 300; letter-spacing: 0; }
+.scard.base { background: var(--bg2); border: 1px solid var(--border); color: var(--text2); }
+.scard.base .sv { color: var(--text); }
+.scard.fc { background: var(--fc-bg); border: 1px solid var(--fc-border); color: var(--fc); }
+.scard.fc .sv { color: var(--fc); }
+.scard.warn { background: var(--warn-bg); border: 1px solid #3a2a00; color: var(--warn); }
+.scard.warn .sv { color: var(--warn); }
+
+/* Route stops */
+.stop { border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 10px; background: var(--bg2); }
+.stop.fc { border-color: var(--fc-border); background: var(--fc-bg); }
+.sth { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.stnum { font-size: 10px; color: var(--text3); min-width: 48px; text-transform: uppercase; }
+.ststn { font-size: 14px; color: var(--text); flex: 1; }
+.stsys { font-size: 11px; color: var(--text2); }
+.stdist { font-size: 11px; color: var(--text3); }
+.fcbadge { font-size: 10px; padding: 2px 8px; border-radius: 3px; background: #0a2a40; color: var(--fc); border: 1px solid var(--fc-border); }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { font-size: 11px; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border2); color: var(--text2); }
+.chip .stk { color: var(--text3); }
+.chip.short { border-color: #4a2a00; background: #1a1000; }
+.chip.short .stk { color: var(--warn); }
+.stinfo { font-size: 10px; color: var(--text3); margin-top: 6px; }
+.fcreason { font-size: 10px; color: var(--fc); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--fc-border); }
+
+/* Errors / warnings */
+.ebox { padding: 8px 12px; border: 1px solid #4a1a1a; border-radius: 4px; background: var(--danger-bg); color: var(--danger); font-size: 11px; margin-bottom: 5px; }
+.wbox { padding: 8px 12px; border: 1px solid #3a2a00; border-radius: 4px; background: var(--warn-bg); color: var(--warn); font-size: 11px; margin-bottom: 14px; }
+
+.stop.done { opacity: .45; border-color: var(--border) !important; background: var(--bg) !important; }
+.stop.done .ststn { text-decoration: line-through; color: var(--text3); }
+.donebtn { font-size: 10px; padding: 3px 10px; border: 1px solid var(--border2); border-radius: 4px; background: transparent; color: var(--text3); font-family: var(--mono); cursor: pointer; flex-shrink: 0; transition: all .15s; }
+.donebtn:hover { border-color: var(--ok); color: var(--ok); }
+.stop.done .donebtn { border-color: var(--ok); color: var(--ok); background: var(--ok-bg); }
+.trips { font-size: 10px; color: var(--text3); margin-top: 6px; }
+.trips span { color: var(--warn); }
+.export-bar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
+.exportbtn { font-size: 11px; padding: 5px 14px; border: 1px solid var(--fc-border); border-radius: 4px; background: transparent; color: var(--fc); cursor: pointer; font-family: var(--mono); transition: all .15s; letter-spacing: .06em; }
+.exportbtn:hover { background: var(--fc-bg); }
+.export-copied { font-size: 10px; color: var(--ok); opacity: 0; transition: opacity .3s; }
+.inara-link { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--text3); }
+.inara-link:hover { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+details { margin-top: 20px; }
+summary { font-size: 10px; color: var(--text3); cursor: pointer; user-select: none; letter-spacing: .06em; }
+pre { font-size: 10px; color: var(--text2); background: var(--bg3); padding: 10px; border-radius: 4px; overflow-x: auto; margin-top: 8px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; border: 1px solid var(--border); }
+
+.progress-bar { height: 2px; background: var(--border); border-radius: 2px; margin-bottom: 20px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width .3s; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<h1>ED Colonisation Supply Planner</h1>
+<p class="subtitle">spansh market scanner · station-optimised routing · fleet carrier logic · <span style="color:var(--warn)">spansh coverage is EDMC-submitted — new colonies may not appear until a player with EDMC docks there</span></p>
+
+<div class="cfg">
+  <div class="cfield grow">
+    <span class="section-label">reference system</span>
+    <input id="refsys" type="text" placeholder="e.g. Musca Dark Region PY-Q B5-3" value="Musca Dark Region PY-Q B5-3">
+  </div>
+  <div class="cfield">
+    <span class="section-label">max distance (ly)</span>
+    <input id="maxdist" type="number" value="500" min="10" max="5000" style="width:95px">
+  </div>
+  <div class="cfield">
+    <span class="section-label">FC threshold (units)</span>
+    <input id="fcthresh" type="number" value="1500" min="100" max="99999" style="width:110px">
+  </div>
+  <div class="cfield">
+    <span class="section-label">results / commodity</span>
+    <input id="rescount" type="number" value="25" min="5" max="100" style="width:85px">
+  </div>
+  <div class="cfield">
+    <span class="section-label">cargo hold (t)</span>
+    <input id="cargohold" type="number" value="400" min="1" max="99999" style="width:90px">
+  </div>
+</div>
+
+<div class="import-box">
+  <span class="section-label" style="margin-bottom:6px">paste commodity list — any format works (name: qty, name qty, CSV, Inara table paste, etc.)</span>
+  <textarea id="paste-input" placeholder="Aluminium: 2141&#10;Steel 2141&#10;Titanium, 1628&#10;Liquid Oxygen: 1028&#10;Bioreducing Lichen	172&#10;..."></textarea>
+  <button class="ibtn" onclick="parsePaste()">apply to list</button>
+  <div class="parse-status" id="paste-status"></div>
+</div>
+
+<div class="topbar">
+  <span class="section-label">commodities needed</span>
+  <div class="smbtns">
+    <button class="smbtn" onclick="selectAll(true)">select all</button>
+    <button class="smbtn" onclick="selectAll(false)">clear</button>
+  </div>
+</div>
+
+<div id="cgrid" class="cgrid"></div>
+
+<button id="scanbtn" class="scanbtn" onclick="runScan()">scan markets</button>
+<div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+
+<div id="statbar" class="statbar"></div>
+<div id="errors"></div>
+<div id="results"></div>
+
+<details>
+  <summary>debug log</summary>
+  <pre id="dbg">—</pre>
+</details>
+
+<script>
+const COMMS = [
+  {n:'Steel',c:'Metals'},{n:'Titanium',c:'Metals'},{n:'Aluminium',c:'Metals'},
+  {n:'Copper',c:'Metals'},{n:'Cobalt',c:'Metals'},{n:'Lithium',c:'Metals'},
+  {n:'Polymers',c:'Industrial'},{n:'Insulating Membrane',c:'Industrial'},
+  {n:'Ceramic Composites',c:'Industrial'},{n:'CMM Composite',c:'Industrial'},
+  {n:'Superconductors',c:'Industrial'},{n:'Semiconductors',c:'Industrial'},
+  {n:'Structural Regulators',c:'Industrial'},{n:'Thermal Cooling Units',c:'Industrial'},
+  {n:'Microbial Furnaces',c:'Industrial'},{n:'Building Fabricators',c:'Industrial'},
+  {n:'Computer Components',c:'High Tech'},{n:'Robotics',c:'High Tech'},
+  {n:'Power Generators',c:'High Tech'},{n:'Bioreducing Lichen',c:'High Tech'},
+  {n:'Muon Imager',c:'High Tech'},{n:'Geological Equipment',c:'High Tech'},
+  {n:'H.E. Suits',c:'High Tech'},{n:'Resonating Separators',c:'High Tech'},
+  {n:'Atmospheric Extractors',c:'High Tech'},{n:'Mineral Extractors',c:'High Tech'},
+  {n:'Surface Stabilisers',c:'High Tech'},{n:'Agronomic Treatment',c:'High Tech'},
+  {n:'Liquid Oxygen',c:'Chemicals'},
+  {n:'Water',c:'Food'},{n:'Water Purifiers',c:'Food'},
+  {n:'Food Cartridges',c:'Food'},{n:'Fruit and Vegetables',c:'Food'},
+  {n:'Clothing',c:'Consumer'},{n:'Consumer Technology',c:'Consumer'},
+  {n:'Domestic Appliances',c:'Consumer'},{n:'Evacuation Shelter',c:'Consumer'},
+];
+
+let dbgLines = [];
+
+function log(...a) {
+  const l = a.map(x => typeof x === 'object' ? JSON.stringify(x, null, 2) : String(x)).join(' ');
+  dbgLines.push(l);
+  document.getElementById('dbg').textContent = dbgLines.slice(-200).join('\n');
+}
+
+function uid(n) { return n.replace(/[\s.']/g, '_'); }
+
+function buildGrid() {
+  const g = document.getElementById('cgrid');
+  let cat = null, html = '';
+  for (const c of COMMS) {
+    if (c.c !== cat) {
+      cat = c.c;
+      html += `<div class="cathead">${cat}</div>`;
+    }
+    const id = uid(c.n);
+    html += `<div class="crow" id="row_${id}">
+      <input type="checkbox" id="chk_${id}" onchange="toggleRow('${id}')">
+      <label class="cname" for="chk_${id}">${c.n}</label>
+      <input type="number" class="amt" id="amt_${id}" placeholder="qty" min="1">
+    </div>`;
+  }
+  g.innerHTML = html;
+}
+
+function toggleRow(id) {
+  const chk = document.getElementById('chk_' + id);
+  document.getElementById('row_' + id).classList.toggle('on', chk.checked);
+}
+
+function selectAll(v) {
+  COMMS.forEach(c => {
+    const id = uid(c.n);
+    document.getElementById('chk_' + id).checked = v;
+    document.getElementById('row_' + id).classList.toggle('on', v);
+  });
+}
+
+// ── Fuzzy commodity matcher ──────────────────────────────────────────────────
+function matchComm(name) {
+  const nl = name.toLowerCase().trim();
+  return COMMS.find(c => {
+    const cl = c.n.toLowerCase();
+    return cl === nl || cl.includes(nl) || nl.includes(cl) ||
+      nl.replace(/[^a-z]/g, '').includes(cl.replace(/[^a-z]/g, '')) ||
+      cl.replace(/[^a-z]/g, '').includes(nl.replace(/[^a-z]/g, ''));
+  });
+}
+
+function applyParsed(pairs) {
+  let matched = 0;
+  const unmatched = [];
+  selectAll(false);
+  for (const { name, qty } of pairs) {
+    const m = matchComm(name);
+    if (m) {
+      const id = uid(m.n);
+      document.getElementById('chk_' + id).checked = true;
+      document.getElementById('row_' + id).classList.add('on');
+      if (qty > 0) document.getElementById('amt_' + id).value = qty;
+      matched++;
+    } else {
+      unmatched.push(name);
+    }
+  }
+  return { matched, unmatched };
+}
+
+// ── Paste parser ─────────────────────────────────────────────────────────────
+function parsePaste() {
+  const raw = document.getElementById('paste-input').value.trim();
+  const st = document.getElementById('paste-status');
+  if (!raw) { st.textContent = 'nothing to parse'; st.className = 'parse-status err'; return; }
+
+  const pairs = [];
+  for (const line of raw.split(/\n/)) {
+    const l = line.trim();
+    if (!l) continue;
+    // Formats: "Name: 1234", "Name 1234", "1234 Name", "Name\t1234", "Name,1234"
+    const m = l.match(/^(.+?)[\s:,\t]+(\d[\d,]*)\s*$/) ||
+               l.match(/^(\d[\d,]*)\s+(.+)$/);
+    if (m) {
+      const a = m[1].trim(), b = m[2].replace(/,/g, '');
+      const qb = parseInt(b), qa = parseInt(a.replace(/,/g, ''));
+      if (!isNaN(qb)) pairs.push({ name: a, qty: qb });
+      else if (!isNaN(qa)) pairs.push({ name: b, qty: qa });
+    } else {
+      pairs.push({ name: l, qty: 0 });
+    }
+  }
+
+  const { matched, unmatched } = applyParsed(pairs);
+  if (matched === 0) { st.textContent = 'no matches — check format'; st.className = 'parse-status err'; }
+  else if (unmatched.length) { st.textContent = `matched ${matched} — unmatched: ${unmatched.join(', ')}`; st.className = 'parse-status'; }
+  else { st.textContent = `all ${matched} commodities matched`; st.className = 'parse-status ok'; }
+}
+
+
+// ── CORS proxy auto-detection ────────────────────────────────────────────────
+// When running from file://, browsers block cross-origin requests (CORS).
+// Try multiple proxies in sequence — if one is down, fall through to the next.
+const FILE_MODE = location.protocol === 'file:';
+const SPANSH_API = 'https://spansh.co.uk/api/stations/search';
+
+const PROXY_LIST = [
+  url => 'https://corsproxy.io/?' + url,
+  url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+  url => 'https://thingproxy.freeboard.io/fetch/' + url,
+  url => 'https://api.codetabs.com/v1/proxy/?quest=' + url,
+];
+let _proxyIdx = 0;
+
+async function fetchWithProxy(url, opts) {
+  if (!FILE_MODE) return fetch(url, opts);
+
+  // For POST with body we need to handle allorigins differently — it only does GET
+  // so we skip GET-only proxies for POST requests and note it in the log
+  for (let pi = _proxyIdx; pi < PROXY_LIST.length; pi++) {
+    const proxied = PROXY_LIST[pi](url);
+    log(`proxy[${pi}] → ${proxied.slice(0, 80)}...`);
+    try {
+      const res = await fetch(proxied, opts);
+      if (res.ok) {
+        if (pi !== _proxyIdx) { _proxyIdx = pi; log(`proxy[${pi}] worked — pinned`); }
+        return res;
+      }
+      log(`proxy[${pi}] HTTP ${res.status} — trying next`);
+    } catch (e) {
+      log(`proxy[${pi}] failed: ${e.message} — trying next`);
+    }
+  }
+  // All proxies failed — try direct as last resort (will fail CORS from file://, but gives a real error)
+  log('all proxies failed — attempting direct (expect CORS error from file://)');
+  return fetch(url, opts);
+}
+
+// Show a subtle notice when running in file:// mode
+if (FILE_MODE) {
+  const note = document.createElement('div');
+  note.style.cssText = 'font-size:10px;color:var(--text3);letter-spacing:.06em;margin-bottom:12px;padding:6px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg2)';
+  note.textContent = '⚡ running from file:// — CORS proxy chain active (4 fallbacks). internet required.';
+  document.querySelector('.subtitle').after(note);
+}
+
+// ── Spansh API ───────────────────────────────────────────────────────────────
+// Try multiple filter variants - Spansh docs are sparse, "Supply" is station-side term
+const FILTER_VARIANTS = [
+  (n) => ({ has_market: [{ value: true }], market: [{ name: n, value: ['Supply'] }] }),
+  (n) => ({ has_market: [{ value: true }], market: [{ name: n, value: ['Buy'] }] }),
+  (n) => ({ has_market: { value: true }, market: [{ name: n, value: ['Supply'] }] }),
+  (n) => ({ has_market: [{ value: true }] }), // fallback: all markets, filter stock client-side
+];
+let _goodVariant = null;
+
+async function fetchComm(name, ref, size) {
+  const toTry = _goodVariant !== null ? [_goodVariant] : FILTER_VARIANTS;
+
+  for (let i = 0; i < toTry.length; i++) {
+    const fn = toTry[i];
+    const body = {
+      filters: fn(name),
+      reference_system: ref,
+      sort: [{ distance: { direction: 'asc' } }],
+      size
+    };
+    log(`→ "${name}" variant=${_goodVariant !== null ? 'cached' : i}`);
+    let res;
+    try {
+      res = await fetchWithProxy(SPANSH_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    } catch (e) {
+      log(`✗ network: ${e.message}`);
+      throw new Error('network: ' + e.message);
+    }
+    if (!res.ok) {
+      const t = await res.text();
+      log(`✗ HTTP ${res.status}: ${t.slice(0, 200)}`);
+      if (i === toTry.length - 1) throw new Error(`HTTP ${res.status}`);
+      continue;
+    }
+    const d = await res.json();
+    const count = d.results?.length ?? 0;
+    log(`✓ "${name}" → ${count} stations`);
+    if (d.results?.[0]) log('  sample:', JSON.stringify(d.results[0]).slice(0, 500));
+    if (count === 0 && _goodVariant === null && i < toTry.length - 1) {
+      log(`  0 results, trying next variant...`);
+      continue;
+    }
+    if (count > 0 && _goodVariant === null) {
+      _goodVariant = fn;
+      log(`  variant ${i} works, caching`);
+    }
+    return d.results || [];
+  }
+  return [];
+}
+
+function getStock(stn, commName) {
+  if (!stn.market) return null;
+  const cn = commName.toLowerCase();
+  const m = stn.market.find(x => (x.commodity || x.name || '').toLowerCase() === cn);
+  if (!m) return null;
+  return m.supply ?? m.stock ?? null;
+}
+
+// ── Data structures ──────────────────────────────────────────────────────────
+// Build a flat map of stations, each with their commodity coverage
+function buildStationMap(allRes, maxDist) {
+  const stations = {};  // key: "system::station"
+  const systemStocks = {}; // system -> total stock of needed commodities across all stations
+
+  for (const [comm, stns] of Object.entries(allRes)) {
+    for (const stn of stns) {
+      const sysName = stn.system_name || stn.system?.name || stn.system || 'Unknown';
+      const dist = parseFloat(stn.distance ?? stn.system?.distance ?? stn.distance_to_reference ?? 0);
+      if (maxDist > 0 && dist > maxDist) continue;
+
+      const stnName = stn.name || stn.station_name || 'Unknown Station';
+      const stock = getStock(stn, comm);
+      const ls = Math.round(stn.distance_to_arrival ?? 0);
+      const key = sysName + '::' + stnName;
+
+      if (!stations[key]) {
+        stations[key] = { station: stnName, system: sysName, dist, ls, comms: {}, totalStock: 0 };
+      }
+
+      const ex = stations[key].comms[comm];
+      if (!ex || (stock !== null && (ex.stock === null || stock > ex.stock))) {
+        if (ex?.stock > 0) stations[key].totalStock -= ex.stock;
+        stations[key].comms[comm] = { stock };
+        if (stock !== null && stock > 0) stations[key].totalStock += stock;
+      }
+    }
+  }
+
+  // Build per-system aggregate stock for FC logic
+  for (const s of Object.values(stations)) {
+    if (!systemStocks[s.system]) systemStocks[s.system] = 0;
+    systemStocks[s.system] += s.totalStock;
+  }
+
+  return { stations, systemStocks };
+}
+
+// ── Routing: station-first greedy set cover ──────────────────────────────────
+// 1. Find station covering the most uncovered commodities → assign those commodities
+// 2. FC flag: if the system's aggregate stock (across ALL stations) > threshold
+// 3. Repeat until covered or no stations left
+function planRoute(stationMap, systemStocks, neededNames, fcThresh, neededQtyMap = {}) {
+  const remaining = new Set(neededNames);
+  const stops = [];
+  const allStations = Object.values(stationMap);
+
+  while (remaining.size > 0) {
+    // Score each station by how many remaining commodities it covers
+    const candidates = allStations.filter(s =>
+      Object.keys(s.comms).some(c => remaining.has(c))
+    );
+    if (!candidates.length) break;
+
+    candidates.sort((a, b) => {
+      const ac = Object.keys(a.comms).filter(c => remaining.has(c)).length;
+      const bc = Object.keys(b.comms).filter(c => remaining.has(c)).length;
+      if (bc !== ac) return bc - ac;
+      // Tiebreak 1: more total stock
+      if (b.totalStock !== a.totalStock) return b.totalStock - a.totalStock;
+      // Tiebreak 2: closer
+      return a.dist - b.dist;
+    });
+
+    const best = candidates[0];
+    const covers = Object.keys(best.comms).filter(c => remaining.has(c));
+
+    // FC check: system-level aggregate stock (all stations in that system combined)
+    const sysTotal = systemStocks[best.system] || 0;
+    const useFC = sysTotal > fcThresh;
+
+    stops.push({
+      station: best.station,
+      system: best.system,
+      dist: best.dist,
+      ls: best.ls,
+      covers,
+      comms: Object.fromEntries(covers.map(c => [c, { ...best.comms[c], needed: neededQtyMap[c] || 0 }])),
+      sysTotal,
+      useFC
+    });
+
+    covers.forEach(c => remaining.delete(c));
+  }
+
+  return { stops, uncovered: [...remaining] };
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+let _lastPlan = null;
+let _lastRef = '';
+
+function toggleDone(idx) {
+  const el = document.getElementById('stop_' + idx);
+  el.classList.toggle('done');
+  const btn = el.querySelector('.donebtn');
+  btn.textContent = el.classList.contains('done') ? '✓ done' : 'mark done';
+}
+
+function inaLink(station, system) {
+  return `https://inara.cz/elite/station/?search=${encodeURIComponent(station)}`;
+}
+
+function exportDiscord() {
+  if (!_lastPlan) return;
+  const hold = parseInt(document.getElementById('cargohold').value) || 0;
+  const ref = _lastRef;
+  const now = new Date().toISOString().slice(0,10);
+  const fcThreshVal = parseInt(document.getElementById('fcthresh').value) || 1500;
+  const fcCount = _lastPlan.stops.filter(s => s.useFC).length;
+
+  let lines = [];
+  lines.push(`**ED COLONISATION ROUTE** — ref: \`${ref}\` — ${now}`);
+  lines.push(`\`${_lastPlan.stops.length} stops · ${fcCount} FC hauls · ${_lastPlan.stops.length - fcCount} direct\`${hold ? ` · hold: ${hold}t` : ''}`);
+  lines.push('');
+
+  _lastPlan.stops.forEach((stop, i) => {
+    const fcTag = stop.useFC ? ' 🚛 FC HAUL' : '';
+    lines.push(`**STOP ${i + 1}${fcTag}** — ${stop.station}`);
+    lines.push(`↳ ${stop.system} · ${stop.dist.toFixed(1)} ly${stop.ls ? ` · ${stop.ls.toLocaleString()} ls` : ''}`);
+
+    for (const [comm, info] of Object.entries(stop.comms)) {
+      const hasStock = info.stock !== null && info.stock > 0;
+      const short = info.needed > 0 && hasStock && info.stock < info.needed;
+      let qty = hasStock ? `×${info.stock.toLocaleString()}` : '×? (verify)';
+      if (short) qty += ` ⚠ SHORT ${(info.needed - info.stock).toLocaleString()}`;
+      if (hold && info.needed > 0) {
+        const runs = Math.ceil(info.needed / hold);
+        qty += runs > 1 ? ` (${runs} runs)` : '';
+      }
+      lines.push(`  • ${comm} ${qty}`);
+    }
+
+    if (stop.useFC) {
+      lines.push(`  ⚡ Stage via FC — system total ${stop.sysTotal.toLocaleString()} units`);
+    }
+    lines.push('');
+  });
+
+  if (_lastPlan.uncovered.length) {
+    lines.push(`⚠ NOT FOUND: ${_lastPlan.uncovered.join(', ')}`);
+  }
+
+  lines.push('_generated by ED Colonisation Supply Planner_');
+
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    const notice = document.getElementById('export-copied');
+    notice.style.opacity = '1';
+    setTimeout(() => notice.style.opacity = '0', 2000);
+  });
+}
+
+function renderResults(plan) {
+  _lastPlan = plan;
+  _lastRef = document.getElementById('refsys').value.trim();
+
+  const el = document.getElementById('results');
+  const hold = parseInt(document.getElementById('cargohold').value) || 0;
+  const fcCount = plan.stops.filter(s => s.useFC).length;
+  const shortCount = plan.stops.reduce((acc, s) =>
+    acc + Object.values(s.comms).filter(i => i.needed > 0 && i.stock !== null && i.stock > 0 && i.stock < i.needed).length, 0);
+
+  // Total trips across all commodities
+  let totalTrips = 0;
+  if (hold > 0) {
+    plan.stops.forEach(stop => {
+      Object.values(stop.comms).forEach(info => {
+        if (info.needed > 0) totalTrips += Math.ceil(info.needed / hold);
+      });
+    });
+  }
+
+  let h = `<div class="summary">
+    <div class="scard base"><span class="section-label">total stops</span><span class="sv">${plan.stops.length}</span></div>
+    <div class="scard fc"><span class="section-label">FC hauls</span><span class="sv">${fcCount}</span></div>
+    <div class="scard base"><span class="section-label">direct hauls</span><span class="sv">${plan.stops.length - fcCount}</span></div>
+    ${hold > 0 ? `<div class="scard warn"><span class="section-label">total runs @ ${hold}t</span><span class="sv">${totalTrips}</span></div>` : ''}
+    ${shortCount ? `<div class="scard warn"><span class="section-label">stock shortages</span><span class="sv">${shortCount}</span></div>` : ''}
+    ${plan.uncovered.length ? `<div class="scard warn"><span class="section-label">not found</span><span class="sv">${plan.uncovered.length}</span></div>` : ''}
+  </div>`;
+
+  h += `<div class="export-bar">
+    <button class="exportbtn" onclick="exportDiscord()">⎋ copy for discord</button>
+    <span class="export-copied" id="export-copied">copied!</span>
+  </div>`;
+
+  if (plan.uncovered.length) {
+    h += `<div class="wbox">⚠ not found within range: ${plan.uncovered.join(', ')}</div>`;
+  }
+
+  plan.stops.forEach((stop, i) => {
+    const inaHref = inaLink(stop.station, stop.system);
+
+    // Per-stop trip count
+    let stopTrips = 0;
+    if (hold > 0) {
+      Object.values(stop.comms).forEach(info => {
+        if (info.needed > 0) stopTrips += Math.ceil(info.needed / hold);
+      });
+    }
+
+    h += `<div class="stop${stop.useFC ? ' fc' : ''}" id="stop_${i}">
+      <div class="sth">
+        <span class="stnum">stop ${i + 1}</span>
+        <div style="flex:1">
+          <div class="ststn"><a class="inara-link" href="${inaHref}" target="_blank" title="verify on Inara">${stop.station}</a></div>
+          <div class="stsys">${stop.system} · <span class="stdist">${stop.dist.toFixed(1)} ly${stop.ls ? ' · ' + stop.ls.toLocaleString() + ' ls' : ''}</span></div>
+        </div>
+        ${stop.useFC ? `<span class="fcbadge">FC haul · ${stop.sysTotal.toLocaleString()} units in system</span>` : ''}
+        <button class="donebtn" onclick="toggleDone(${i})">mark done</button>
+      </div>
+      <div class="chips">`;
+
+    for (const [comm, info] of Object.entries(stop.comms)) {
+      const hasStock = info.stock !== null && info.stock > 0;
+      const short = info.needed > 0 && hasStock && info.stock < info.needed;
+      const runs = hold > 0 && info.needed > 0 ? Math.ceil(info.needed / hold) : 0;
+      const stockLabel = hasStock
+        ? (short
+            ? `<span class="stk" title="need ${info.needed.toLocaleString()}"> ×${info.stock.toLocaleString()} ⚠ short ${(info.needed - info.stock).toLocaleString()}</span>`
+            : `<span class="stk"> ×${info.stock.toLocaleString()}</span>`)
+        : '';
+      const runsLabel = runs > 0 ? `<span class="stk" style="color:var(--text3)"> ${runs}r</span>` : '';
+      h += `<div class="chip${short ? ' short' : ''}">${comm}${stockLabel}${runsLabel}</div>`;
+    }
+
+    h += `</div>`;
+
+    if (hold > 0 && stopTrips > 0) {
+      h += `<div class="trips">cargo runs at ${hold}t hold: <span>${stopTrips} run${stopTrips !== 1 ? 's' : ''}</span></div>`;
+    }
+
+    if (stop.useFC) {
+      h += `<div class="fcreason">FC logic: system-wide stock ${stop.sysTotal.toLocaleString()} units &gt; ${parseInt(document.getElementById('fcthresh').value).toLocaleString()} threshold — stage all commodities via fleet carrier, haul to colony in one jump</div>`;
+    }
+
+    h += `</div>`;
+  });
+
+  el.innerHTML = h;
+}
+
+// ── Main scan ────────────────────────────────────────────────────────────────
+async function runScan() {
+  const ref = document.getElementById('refsys').value.trim();
+  if (!ref) { alert('enter a reference system'); return; }
+
+  const needed = COMMS
+    .filter(c => document.getElementById('chk_' + uid(c.n)).checked)
+    .map(c => ({ name: c.n, qty: parseInt(document.getElementById('amt_' + uid(c.n)).value) || 0 }));
+  if (!needed.length) { alert('select at least one commodity'); return; }
+
+  const size = parseInt(document.getElementById('rescount').value) || 25;
+  const fcThresh = parseInt(document.getElementById('fcthresh').value) || 1500;
+  const maxDist = parseFloat(document.getElementById('maxdist').value) || 150;
+
+  dbgLines = [];
+  _goodVariant = null;
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('errors').innerHTML = '';
+  document.getElementById('progress').style.width = '0%';
+
+  const btn = document.getElementById('scanbtn');
+  const stat = document.getElementById('statbar');
+  btn.disabled = true;
+
+  const allRes = {}, errs = [];
+
+  for (let i = 0; i < needed.length; i++) {
+    const { name } = needed[i];
+    btn.textContent = `scanning ${i + 1} / ${needed.length} — ${name}`;
+    stat.textContent = `→ ${name}`;
+    document.getElementById('progress').style.width = ((i / needed.length) * 100) + '%';
+
+    try {
+      allRes[name] = await fetchComm(name, ref, size);
+    } catch (e) {
+      errs.push({ name, msg: e.message });
+      allRes[name] = [];
+    }
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  document.getElementById('progress').style.width = '100%';
+  stat.textContent = 'building route...';
+
+  const { stations, systemStocks } = buildStationMap(allRes, maxDist);
+  log('stations found:', Object.keys(stations).length);
+  log('systems found:', Object.keys(systemStocks).length);
+
+  const neededQtyMap = Object.fromEntries(needed.map(n => [n.name, n.qty]));
+  const plan = planRoute(stations, systemStocks, needed.map(n => n.name), fcThresh, neededQtyMap);
+  log('stops:', plan.stops.length, 'uncovered:', plan.uncovered.length);
+
+  if (errs.length) {
+    document.getElementById('errors').innerHTML = errs.map(e =>
+      `<div class="ebox">✗ ${e.name}: ${e.msg}</div>`
+    ).join('');
+  }
+
+  renderResults(plan);
+  btn.disabled = false;
+  btn.textContent = 'scan markets';
+  stat.textContent = `done — ${plan.stops.length} stop${plan.stops.length !== 1 ? 's' : ''}, ${plan.uncovered.length} not found`;
+  setTimeout(() => { document.getElementById('progress').style.width = '0%'; }, 2000);
+}
+
+buildGrid();
+</script>
+</body>
+</html>
